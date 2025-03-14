@@ -1,0 +1,501 @@
+import pygame
+import random
+from pygame.locals import *
+import math
+import time
+
+# Initialize Pygame
+pygame.init()
+
+# Get screen info for fullscreen
+screen_info = pygame.display.Info()
+SCREEN_WIDTH = screen_info.current_w
+SCREEN_HEIGHT = screen_info.current_h
+CELL_SIZE = min(SCREEN_WIDTH, SCREEN_HEIGHT) // 30  # Adjust cell size based on screen size
+FPS = 60
+
+# Game speed control
+MOVE_DELAY = 150  # milliseconds between moves (higher = slower)
+
+# Colors
+BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)
+WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
+RED = (255, 0, 0)
+PINK = (255, 192, 203)
+CYAN = (0, 255, 255)
+ORANGE = (255, 165, 0)
+
+
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.WINDOWRESIZED)
+pygame.display.set_caption('Pacman')
+clock = pygame.time.Clock()
+
+# Define the larger maze layout (28x31)
+# 0 = empty space, 1 = wall, 2 = dot, 3 = power pellet
+maze = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,3,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,3,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+    [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+    [1,1,1,1,1,1,2,1,1,1,1,1,0,1,1,0,1,1,1,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,1,1,1,0,1,1,0,1,1,1,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,0,0,0,0,0,0,0,0,0,0,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,0,1,1,1,0,0,1,1,1,0,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,0,1,0,0,0,0,0,0,1,0,1,1,2,1,1,1,1,1,1],
+    [0,0,0,0,0,0,2,0,0,0,1,0,0,0,0,0,0,1,0,0,0,2,0,0,0,0,0,0],
+    [1,1,1,1,1,1,2,1,1,0,1,0,0,0,0,0,0,1,0,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,0,0,0,0,0,0,0,0,0,0,1,1,2,1,1,1,1,1,1],
+    [1,1,1,1,1,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,1,1,1,1,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+    [1,3,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,3,1],
+    [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+    [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+    [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+    [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+    [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+    [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+]
+
+
+total_dots = sum(row.count(2) + row.count(3) for row in maze)
+
+
+offset_x = (SCREEN_WIDTH - len(maze[0]) * CELL_SIZE) // 2
+offset_y = (SCREEN_HEIGHT - len(maze) * CELL_SIZE) // 2
+
+class Pacman:
+    def __init__(self):
+        self.row = 23  
+        self.col = 14
+        self.direction = None
+        self.next_direction = None
+        self.score = 0
+        self.lives = 3
+        self.mouth_open = True
+        self.mouth_change_timer = 0
+        self.power_mode = False
+        self.power_timer = 0
+        self.last_move_time = 0
+
+    def move(self, current_time):
+        
+        if current_time - self.last_move_time < MOVE_DELAY:
+            return
+            
+        
+        if self.next_direction:
+            new_row, new_col = self.get_new_position(self.next_direction)
+            if self.can_move(new_row, new_col):
+                self.direction = self.next_direction
+                self.next_direction = None
+
+        
+        if self.direction:
+            new_row, new_col = self.get_new_position(self.direction)
+            if self.can_move(new_row, new_col):
+                self.row, self.col = new_row, new_col
+                self.check_dot_collision()
+                self.last_move_time = current_time
+
+    def get_new_position(self, direction):
+        new_row, new_col = self.row, self.col
+        
+        if direction == "UP":
+            new_row -= 1
+        elif direction == "DOWN":
+            new_row += 1
+        elif direction == "LEFT":
+            new_col -= 1
+        elif direction == "RIGHT":
+            new_col += 1
+            
+       
+        if new_col < 0:
+            new_col = len(maze[0]) - 1
+        elif new_col >= len(maze[0]):
+            new_col = 0
+        if new_row < 0:
+            new_row = len(maze) - 1
+        elif new_row >= len(maze):
+            new_row = 0
+            
+        return new_row, new_col
+
+    def can_move(self, row, col):
+        
+        if 0 <= row < len(maze) and 0 <= col < len(maze[0]):
+            return maze[row][col] != 1
+        return False
+
+    def check_dot_collision(self):
+        if maze[self.row][self.col] == 2:  
+            maze[self.row][self.col] = 0
+            self.score += 10
+        elif maze[self.row][self.col] == 3:  
+            maze[self.row][self.col] = 0
+            self.score += 50
+            self.power_mode = True
+            self.power_timer = 600  
+
+    def update(self):
+        
+        self.mouth_change_timer += 1
+        if self.mouth_change_timer >= 15:  
+            self.mouth_open = not self.mouth_open
+            self.mouth_change_timer = 0
+            
+        
+        if self.power_mode:
+            self.power_timer -= 1
+            if self.power_timer <= 0:
+                self.power_mode = False
+
+    def draw(self):
+        x = self.col * CELL_SIZE + CELL_SIZE // 2 + offset_x
+        y = self.row * CELL_SIZE + CELL_SIZE // 2 + offset_y
+        radius = CELL_SIZE // 2 - 2  
+        
+        
+        if self.mouth_open:
+             
+            pygame.draw.circle(screen, YELLOW, (x, y), radius)
+            
+            
+            mouth_size = radius * 1.2  
+            
+            if self.direction == "RIGHT" or self.direction is None:
+                
+                points = [
+                    (x, y),
+                    (x + mouth_size, y - mouth_size//1.5),
+                    (x + mouth_size, y + mouth_size//1.5)
+                ]
+            elif self.direction == "LEFT":
+                
+                points = [
+                    (x, y),
+                    (x - mouth_size, y - mouth_size//1.5),
+                    (x - mouth_size, y + mouth_size//1.5)
+                ]
+            elif self.direction == "UP":
+                
+                points = [
+                    (x, y),
+                    (x - mouth_size//1.5, y - mouth_size),
+                    (x + mouth_size//1.5, y - mouth_size)
+                ]
+            elif self.direction == "DOWN":
+                
+                points = [
+                    (x, y),
+                    (x - mouth_size//1.5, y + mouth_size),
+                    (x + mouth_size//1.5, y + mouth_size)
+                ]
+                
+            pygame.draw.polygon(screen, BLACK, points)
+        else:
+            
+            pygame.draw.circle(screen, YELLOW, (x, y), radius)
+
+class Ghost:
+    def __init__(self, row, col, color):
+        self.row = row
+        self.col = col
+        self.color = color
+        self.direction = random.choice(["UP", "DOWN", "LEFT", "RIGHT"])
+        self.scared = False
+        self.last_move_time = 0
+        self.ghost_move_delay = MOVE_DELAY * 1.5  
+    def move(self, pacman, current_time):
+        
+        if current_time - self.last_move_time < self.ghost_move_delay:
+            return
+            
+        self.last_move_time = current_time
+        
+        possible_directions = []
+        for direction in ["UP", "DOWN", "LEFT", "RIGHT"]:
+            new_row, new_col = self.get_new_position(direction)
+            if self.can_move(new_row, new_col):
+                
+                if (direction == "UP" and self.direction == "DOWN") or \
+                   (direction == "DOWN" and self.direction == "UP") or \
+                   (direction == "LEFT" and self.direction == "RIGHT") or \
+                   (direction == "RIGHT" and self.direction == "LEFT"):
+                    continue
+                possible_directions.append((direction, new_row, new_col))
+        
+        if possible_directions:
+            if pacman.power_mode:
+                
+                max_distance = -1
+                best_direction = None
+                best_row, best_col = None, None
+                
+                for direction, new_row, new_col in possible_directions:
+                    distance = abs(new_row - pacman.row) + abs(new_col - pacman.col)
+                    if distance > max_distance:
+                        max_distance = distance
+                        best_direction = direction
+                        best_row, best_col = new_row, new_col
+            else:
+                # Chase Pacman in normal mode
+                min_distance = float('inf')
+                best_direction = None
+                best_row, best_col = None, None
+                
+                for direction, new_row, new_col in possible_directions:
+                    distance = abs(new_row - pacman.row) + abs(new_col - pacman.col)
+                    if distance < min_distance:
+                        min_distance = distance
+                        best_direction = direction
+                        best_row, best_col = new_row, new_col
+            
+            # Sometimes move randomly to make ghosts less predictable
+            if random.random() < 0.3:  # 30% chance to move randomly
+                best_direction, best_row, best_col = random.choice(possible_directions)
+                
+            self.direction = best_direction
+            self.row, self.col = best_row, best_col
+        else:
+            # If no valid moves, reverse direction
+            if self.direction == "UP":
+                self.direction = "DOWN"
+            elif self.direction == "DOWN":
+                self.direction = "UP"
+            elif self.direction == "LEFT":
+                self.direction = "RIGHT"
+            elif self.direction == "RIGHT":
+                self.direction = "LEFT"
+
+    def get_new_position(self, direction):
+        new_row, new_col = self.row, self.col
+        
+        if direction == "UP":
+            new_row -= 1
+        elif direction == "DOWN":
+            new_row += 1
+        elif direction == "LEFT":
+            new_col -= 1
+        elif direction == "RIGHT":
+            new_col += 1
+            
+        # Handle tunnel wrapping
+        if new_col < 0:
+            new_col = len(maze[0]) - 1
+        elif new_col >= len(maze[0]):
+            new_col = 0
+        if new_row < 0:
+            new_row = len(maze) - 1
+        elif new_row >= len(maze):
+            new_row = 0
+            
+        return new_row, new_col
+
+    def can_move(self, row, col):
+        # Check if the position is within bounds and not a wall
+        if 0 <= row < len(maze) and 0 <= col < len(maze[0]):
+            return maze[row][col] != 1
+        return False
+
+    def update(self, pacman):
+        self.scared = pacman.power_mode
+        # Make ghosts slower when scared
+        if self.scared:
+            self.ghost_move_delay = MOVE_DELAY * 2
+        else:
+            self.ghost_move_delay = MOVE_DELAY * 1.5
+
+    def draw(self):
+        x = self.col * CELL_SIZE + CELL_SIZE // 2 + offset_x
+        y = self.row * CELL_SIZE + CELL_SIZE // 2 + offset_y
+        
+        # Draw ghost body
+        color = BLUE if self.scared else self.color
+        radius = CELL_SIZE // 2 - 4  # Slightly larger radius
+        
+        # Ghost body (semi-circle for head)
+        pygame.draw.circle(screen, color, (x, y - 5), radius)
+        
+        # Ghost body (rectangle for body)
+        pygame.draw.rect(screen, color, 
+                       (x - radius, y - 5, 
+                        radius * 2, radius + 5))
+        
+        # Ghost "skirt" (wavy bottom)
+        skirt_height = 7
+        for i in range(3):
+            wave_width = (radius * 2) // 3
+            pygame.draw.rect(screen, color, 
+                           (x - radius + i * wave_width, 
+                            y + radius, 
+                            wave_width, 
+                            skirt_height))
+        
+        # Eyes
+        eye_radius = 5  # Larger eyes
+        eye_offset = 7
+        
+        # White part of eyes
+        pygame.draw.circle(screen, WHITE, (x - eye_offset, y - 8), eye_radius)
+        pygame.draw.circle(screen, WHITE, (x + eye_offset, y - 8), eye_radius)
+        
+        # Pupils
+        pupil_offset = 2
+        pupil_radius = 3  # Larger pupils
+        
+        # Adjust pupil position based on direction
+        pupil_x_offset = 0
+        pupil_y_offset = 0
+        
+        if self.direction == "LEFT":
+            pupil_x_offset = -pupil_offset
+        elif self.direction == "RIGHT":
+            pupil_x_offset = pupil_offset
+        elif self.direction == "UP":
+            pupil_y_offset = -pupil_offset
+        elif self.direction == "DOWN":
+            pupil_y_offset = pupil_offset
+        
+        pygame.draw.circle(screen, BLACK, 
+                         (x - eye_offset + pupil_x_offset, y - 8 + pupil_y_offset), 
+                         pupil_radius)
+        pygame.draw.circle(screen, BLACK, 
+                         (x + eye_offset + pupil_x_offset, y - 8 + pupil_y_offset), 
+                         pupil_radius)
+
+def draw_maze():
+    for row in range(len(maze)):
+        for col in range(len(maze[0])):
+            x = col * CELL_SIZE + offset_x
+            y = row * CELL_SIZE + offset_y
+            
+            if maze[row][col] == 1:  # Wall
+                pygame.draw.rect(screen, BLUE, (x, y, CELL_SIZE, CELL_SIZE))
+            elif maze[row][col] == 2:  # Dot
+                pygame.draw.circle(screen, WHITE, (x + CELL_SIZE // 2, y + CELL_SIZE // 2), 4)  # Larger dots
+            elif maze[row][col] == 3:  # Power pellet
+                pygame.draw.circle(screen, WHITE, (x + CELL_SIZE // 2, y + CELL_SIZE // 2), 10)  # Larger power pellets
+
+def check_ghost_collision(pacman, ghosts):
+    for ghost in ghosts:
+        if pacman.row == ghost.row and pacman.col == ghost.col:
+            if pacman.power_mode:
+                # Reset ghost position
+                ghost.row = 14
+                ghost.col = 14
+                pacman.score += 200
+            else:
+                pacman.lives -= 1
+                if pacman.lives > 0:
+                    # Reset positions
+                    pacman.row = 23
+                    pacman.col = 14
+                    pacman.direction = None
+                    pacman.next_direction = None
+                    for g in ghosts:
+                        g.row = 14
+                        g.col = 14
+                return True
+    return False
+
+def check_win(pacman):
+    # Count remaining dots
+    remaining_dots = sum(row.count(2) + row.count(3) for row in maze)
+    return remaining_dots == 0
+
+def draw_text(text, size, color, x, y):
+    try:
+        font = pygame.font.SysFont('Arial', size)
+        text_surface = font.render(text, True, color)
+        text_rect = text_surface.get_rect()
+        text_rect.midtop = (x, y)
+        screen.blit(text_surface, text_rect)
+    except Exception as e:
+        print(f"Error drawing text: {e}")
+
+def reset_game():
+    # Reset maze (restore dots and power pellets)
+    global maze
+    maze = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+        [1,3,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,3,1],
+        [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+        [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+        [1,2,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,2,1],
+        [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+        [1,1,1,1,1,1,2,1,1,1,1,1,0,1,1,0,1,1,1,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,1,1,1,0,1,1,0,1,1,1,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,0,0,0,0,0,0,0,0,0,0,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,0,1,1,1,0,0,1,1,1,0,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,0,1,0,0,0,0,0,0,1,0,1,1,2,1,1,1,1,1,1],
+        [0,0,0,0,0,0,2,0,0,0,1,0,0,0,0,0,0,1,0,0,0,2,0,0,0,0,0,0],
+        [1,1,1,1,1,1,2,1,1,0,1,0,0,0,0,0,0,1,0,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,0,0,0,0,0,0,0,0,0,0,1,1,2,1,1,1,1,1,1],
+        [1,1,1,1,1,1,2,1,1,0,1,1,1,1,1,1,1,1,0,1,1,2,1,1,1,1,1,1],
+        [1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+        [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+        [1,2,1,1,1,1,2,1,1,1,1,1,2,1,1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+        [1,3,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,3,1],
+        [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+        [1,1,1,2,1,1,2,1,1,2,1,1,1,1,1,1,1,1,2,1,1,2,1,1,2,1,1,1],
+        [1,2,2,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,1,1,2,2,2,2,2,2,1],
+        [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+        [1,2,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+        [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ]
+    
+    # Create new Pacman and ghosts with positions for the new maze
+    pacman = Pacman()
+    ghosts = [
+        Ghost(11, 13, RED),    # Blinky
+        Ghost(14, 11, PINK),   # Pinky
+        Ghost(14, 13, CYAN),   # Inky
+        Ghost(14, 15, ORANGE)  # Clyde
+    ]
+    
+    return pacman, ghosts
+
+def main():
+    pacman, ghosts = reset_game()
+    
+    game_over = False
+    game_won = False
+    
+    # Main game loop
+    running = True
+    while running:
+        current_time = pygame.time.get_ticks()
+        
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                running = False
+            elif event.type == KEYDOWN:
+                if event.key == K_ESCAPE:  # Add escape key to exit
+                    running = False
+                elif event.key == K_UP:
+                    pacman.next_direction = "UP"
+                elif event.key == K_DOWN:
+                    pacman.next_direction = "DOWN"
+                elif event.key == K_LEFT:
+                    pacman.next_direction = "LEFT"
+                elif event.key == K_RIGHT:
+                    pacman.next_direction = "RIGHT"
+            
